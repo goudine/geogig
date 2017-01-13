@@ -8,7 +8,7 @@ import static com.google.common.base.Optional.absent;
 import java.util.Collection;
 import java.util.Set;
 
-import org.geotools.geometry.jts.JTS;
+import org.geotools.geometry.jts.ReferencedEnvelope;
 import org.geotools.referencing.CRS;
 import org.opengis.metadata.extent.Extent;
 import org.opengis.metadata.extent.GeographicBoundingBox;
@@ -25,7 +25,7 @@ public class EPSGBoundsCalc {
 //    public EPSGBoundsCalc() {
 //    }
 
-    public static Optional<Envelope> getProjectionBounds(CoordinateReferenceSystem crs,
+    public Optional<Envelope> getExtents(CoordinateReferenceSystem crs,
         StringBuilder outErr) {
         final Extent domainOfValidity = crs.getDomainOfValidity();
         if (null == domainOfValidity) {
@@ -60,15 +60,19 @@ public class EPSGBoundsCalc {
 
         //transforms into wgs84 from crs in calc()
         CoordinateReferenceSystem wgs84LongFirst;
+        CoordinateReferenceSystem targetCRS;
+
         try {
             wgs84LongFirst = CRS.decode("EPSG:4326", true);
+            targetCRS = CRS.decode("EPSG:3412");
             MathTransform mathTransform = CRS.findMathTransform(wgs84LongFirst, crs, true);
             //create envelope of input coords
             Envelope wgs84Envelope = new Envelope(minx, maxx, miny, maxy);
-            //transform to wgs84
-            Envelope crsBounds = JTS.transform(wgs84Envelope, mathTransform);
-
-            return Optional.of(crsBounds);
+            //transform to wgs84, JTS transform doesn't work for polar
+//            Envelope crsBounds = JTS.transform(wgs84Envelope, mathTransform);
+            ReferencedEnvelope refBounds = new ReferencedEnvelope(wgs84Envelope, wgs84LongFirst);
+            Envelope transformBounds = refBounds.transform(targetCRS, true);
+            return Optional.of(transformBounds);
 
         } catch (Exception e) {
             outErr.append("ERROR: " + e.getMessage());
@@ -77,7 +81,8 @@ public class EPSGBoundsCalc {
     }
 
     //change so we can lookup a particular CRS, currently iterates through all`
-    public static void calc(String epsg) throws Exception {
+    public Optional<Envelope> findCode(String epsg) throws Exception {
+        Optional<Envelope> projectionBounds = Optional.absent();
         //grabs CRS list
         CRSAuthorityFactory authorityFactory = CRS.getAuthorityFactory(true);
         Set<String> authorityCodes = authorityFactory
@@ -93,19 +98,10 @@ public class EPSGBoundsCalc {
                     continue;
                 }
                 StringBuilder err = new StringBuilder();
-                Optional<Envelope> projectionBounds = getProjectionBounds(crs, err);
+                projectionBounds = getExtents(crs, err);
                 System.err.printf("%s: %s %s\n", code, projectionBounds.orNull(), err);
             }
         }
-    }
-
-    //toss this, use a constructor instead?
-    public static void main(String[] args) {
-        try {
-            new EPSGBoundsCalc().calc("EPSG:3857");
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-        System.exit(0);
+        return projectionBounds;
     }
 }
