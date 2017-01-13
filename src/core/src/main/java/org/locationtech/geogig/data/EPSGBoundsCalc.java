@@ -69,7 +69,6 @@ public class EPSGBoundsCalc {
             //create envelope of input coords
             Envelope wgs84Envelope = new Envelope(minx, maxx, miny, maxy);
             //transform to wgs84, JTS transform doesn't work for polar
-//            Envelope crsBounds = JTS.transform(wgs84Envelope, mathTransform);
             ReferencedEnvelope refBounds = new ReferencedEnvelope(wgs84Envelope, wgs84LongFirst);
             Envelope transformBounds = refBounds.transform(targetCRS, true);
             return Optional.of(transformBounds);
@@ -81,16 +80,15 @@ public class EPSGBoundsCalc {
     }
 
     //change so we can lookup a particular CRS, currently iterates through all`
-    public Optional<Envelope> findCode(String epsg) throws Exception {
+    public Optional<Envelope> findCode(CoordinateReferenceSystem crs) throws Exception {
         Optional<Envelope> projectionBounds = Optional.absent();
-        //grabs CRS list
         CRSAuthorityFactory authorityFactory = CRS.getAuthorityFactory(true);
         Set<String> authorityCodes = authorityFactory
             .getAuthorityCodes(CoordinateReferenceSystem.class);
         for (String code : authorityCodes) {
             //only checks the EPSG codes
-            if (code.startsWith("EPSG:") & code.contains(epsg)) {
-                CoordinateReferenceSystem crs;
+            if (code.startsWith("EPSG:") && code.contains(crs.getName().toString())) {
+                CoordinateReferenceSystem crs_temp;
                 try {
                     crs = authorityFactory.createCoordinateReferenceSystem(code);
                 } catch (Exception e) {
