@@ -10,28 +10,17 @@
 package org.locationtech.geogig.data;
 
 import com.google.common.base.Optional;
-import com.google.common.collect.Lists;
-import org.geotools.feature.type.GeometryTypeImpl;
 import org.junit.Test;
-import org.locationtech.geogig.model.ObjectId;
 import org.locationtech.geogig.model.RevFeatureType;
-import org.locationtech.geogig.model.impl.RevFeatureTypeBuilder;
 import org.locationtech.geogig.plumbing.ResolveFeatureType;
 import org.locationtech.geogig.porcelain.CommitOp;
 import org.locationtech.geogig.repository.NodeRef;
 import org.locationtech.geogig.test.integration.RepositoryTestCase;
-import org.mockito.internal.matchers.InstanceOf;
 import org.opengis.feature.type.GeometryDescriptor;
 import org.opengis.feature.type.PropertyDescriptor;
 import org.opengis.referencing.ReferenceIdentifier;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
-import org.opengis.referencing.cs.CoordinateSystem;
-import sun.tools.tree.InstanceOfExpression;
 
-import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
-import java.util.stream.Collectors;
 
 /**
  * Created by mthompson on 2017-01-12.
@@ -53,6 +42,7 @@ public class EPSGBoundsCalcTest extends RepositoryTestCase {
 
         Optional<RevFeatureType> featureType = geogig.command(ResolveFeatureType.class)
             .setRefSpec("WORK_HEAD:" + NodeRef.appendChild(pointsName, idP1)).call();
+
         List<PropertyDescriptor> descList = featureType.get().descriptors().asList();
 
         for (PropertyDescriptor desc : descList) {
@@ -61,16 +51,16 @@ public class EPSGBoundsCalcTest extends RepositoryTestCase {
             }
         }
         System.out.println(code);
+        System.out.println("  ->  This is the code variable\n");
 
-        String[] testArray = {"EPSG:3411","EPSG:3412","EPSG:3857","EPSG:26910","EPSG:4326"};
+        String[] testArray = {"EPSG:4326","EPSG:26910","EPSG:3857","EPSG:3412","EPSG:3411"};
 
-        System.out.println(testArray[3]);
+        for (int i=0;i<5;i++)
+            try {
+                new EPSGBoundsCalc().findCode(testArray[i]);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
 
-        try {
-            new EPSGBoundsCalc().findCode(code.toString());
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-//
     }
 }
