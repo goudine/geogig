@@ -15,6 +15,7 @@ import org.opengis.metadata.extent.GeographicBoundingBox;
 import org.opengis.metadata.extent.GeographicExtent;
 import org.opengis.referencing.crs.CRSAuthorityFactory;
 import org.opengis.referencing.crs.CoordinateReferenceSystem;
+import org.opengis.referencing.cs.CoordinateSystem;
 import org.opengis.referencing.operation.MathTransform;
 
 import com.google.common.base.Optional;
@@ -63,9 +64,10 @@ public class EPSGBoundsCalc {
         CoordinateReferenceSystem targetCRS;
 
         try {
+            ////DO WE NEED TO TRANSFORM OUR ENVELOPES??? UNCLEAR ON THIS, if we do we should use the ReferencedEnvelope to preserve polar
             wgs84LongFirst = CRS.decode("EPSG:4326", true);
             targetCRS = CRS.decode("EPSG:3412");
-            MathTransform mathTransform = CRS.findMathTransform(wgs84LongFirst, crs, true);
+//            MathTransform mathTransform = CRS.findMathTransform(wgs84LongFirst, crs, true);
             //create envelope of input coords
             Envelope wgs84Envelope = new Envelope(minx, maxx, miny, maxy);
             //transform to wgs84, JTS transform doesn't work for polar
@@ -80,15 +82,17 @@ public class EPSGBoundsCalc {
     }
 
     //change so we can lookup a particular CRS, currently iterates through all`
-    public Optional<Envelope> findCode(CoordinateReferenceSystem crs) throws Exception {
+    public Optional<Envelope> findCode(String refId) throws Exception {
         Optional<Envelope> projectionBounds = Optional.absent();
+        CoordinateReferenceSystem crs;
+
         CRSAuthorityFactory authorityFactory = CRS.getAuthorityFactory(true);
         Set<String> authorityCodes = authorityFactory
             .getAuthorityCodes(CoordinateReferenceSystem.class);
+
         for (String code : authorityCodes) {
             //only checks the EPSG codes
-            if (code.startsWith("EPSG:") && code.contains(crs.getName().toString())) {
-                CoordinateReferenceSystem crs_temp;
+            if (code.startsWith("EPSG:") && code.contains(refId)) {
                 try {
                     crs = authorityFactory.createCoordinateReferenceSystem(code);
                 } catch (Exception e) {
