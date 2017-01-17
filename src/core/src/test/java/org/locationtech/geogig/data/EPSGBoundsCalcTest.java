@@ -65,13 +65,14 @@ public class EPSGBoundsCalcTest extends RepositoryTestCase {
     @Test
     public void epsgTest() throws Exception {
         Envelope bounds = null;
-        String[] testArray = {"EPSG:4326","EPSG:26910","EPSG:3857","EPSG:3412","EPSG:3411"};
-        Envelope[] testEnvelopes = new Envelope[5];
+        String[] testArray = {"EPSG:4326","EPSG:26910","EPSG:3857","EPSG:3412","EPSG:3411", "EPSG:3031"};
+        Envelope[] testEnvelopes = new Envelope[6];
         testEnvelopes[0] = new Envelope(-180.0, 180.0, -90.0, 90.0);
         testEnvelopes[1] = new Envelope(212172.22206537757, 788787.632995196, 3378624.2031936757, 9083749.435906317);
         testEnvelopes[2] = new Envelope(-2.0037508342789244E7, 2.0037508342789244E7, -2.00489661040146E7, 2.0048966104014594E7);
         testEnvelopes[3] = new Envelope(-3323231.542684214, 3323231.542684214, -3323231.542684214, 3323231.542684214);
         testEnvelopes[4] = new Envelope(-2349879.5592850395, 2349879.5592850395, -2349879.5592850395, 2349879.5592850395);
+        testEnvelopes[5] = new Envelope(-3333134.027630277, 3333134.027630277, -3333134.027630277, 3333134.027630277);
 
         for (int i = 0; i < testArray.length; i++) {
             try {
@@ -82,4 +83,20 @@ public class EPSGBoundsCalcTest extends RepositoryTestCase {
             assertEquals(bounds, testEnvelopes[i]);
         }
     }
+
+    @Test
+    public void nullBoundsTest() throws Exception{
+        Envelope bounds = null;
+        String[] testArray = {"EPSG:900913","random stuff!!!"};
+
+        for (int i = 0; i < testArray.length; i++) {
+            try {
+                bounds = new EPSGBoundsCalc().findCode(testArray[i]);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+            assertNull(bounds);
+        }
+    }
+
 }

@@ -83,11 +83,11 @@ public class EPSGBoundsCalc {
     /**
      * Search for the given CRS (EPSG code), return the bounds (domain of validity)
      * @param refId the input CRS
-     * @return projectionBounds an Envelope describing the CRS bounds
+     * @return projectionBounds an Envelope describing the CRS bounds, or null if bounds are not found
      */
     public Envelope findCode(String refId) throws Exception {
         Envelope projectionBounds = null;
-        CoordinateReferenceSystem crs;
+        CoordinateReferenceSystem crs = null;
 
         CRSAuthorityFactory authorityFactory = CRS.getAuthorityFactory(true);
         Set<String> authorityCodes = authorityFactory.getAuthorityCodes(CoordinateReferenceSystem.class);
@@ -102,10 +102,9 @@ public class EPSGBoundsCalc {
                         crs = authorityFactory.createCoordinateReferenceSystem(code);
                     } catch (Exception e) {
                         System.err.printf("%s: Unable to create CRS: %s\n", code, e.getMessage());
-                        continue;
                     }
                     projectionBounds = getExtents(crs);
-                    System.err.printf("%s: , %s \n", code, projectionBounds);
+                    System.err.printf("%s, %s \n", code, projectionBounds);
                 }
             }
         }
