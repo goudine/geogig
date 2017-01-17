@@ -50,17 +50,15 @@ public class EPSGBoundsCalcTest extends RepositoryTestCase {
                 code = ((GeometryDescriptor) desc).getCoordinateReferenceSystem().getName();
             }
         }
-        System.out.println(code);
-        System.out.println("  ->  This is the code variable\n");
 
         String[] testArray = {"EPSG:4326","EPSG:26910","EPSG:3857","EPSG:3412","EPSG:3411"};
 
-        for (int i=0;i<5;i++)
+        for (int i = 0; i < testArray.length; i++) {
             try {
                 new EPSGBoundsCalc().findCode(testArray[i]);
             } catch (Exception e) {
                 e.printStackTrace();
             }
-
+        }
     }
 }
