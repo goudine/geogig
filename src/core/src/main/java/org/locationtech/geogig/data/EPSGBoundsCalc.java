@@ -8,13 +8,17 @@ import static com.google.common.base.Optional.absent;
 import java.util.Collection;
 import java.util.Set;
 
+import org.geotools.geometry.GeneralEnvelope;
 import org.geotools.geometry.jts.JTS;
+import org.geotools.geometry.jts.ReferencedEnvelope;
 import org.geotools.referencing.CRS;
 import org.opengis.metadata.extent.Extent;
 import org.opengis.metadata.extent.GeographicBoundingBox;
 import org.opengis.metadata.extent.GeographicExtent;
 import org.opengis.referencing.crs.CRSAuthorityFactory;
 import org.opengis.referencing.crs.CoordinateReferenceSystem;
+import org.opengis.referencing.operation.CoordinateOperation;
+import org.opengis.referencing.operation.CoordinateOperationFactory;
 import org.opengis.referencing.operation.MathTransform;
 
 import com.google.common.base.Optional;
@@ -67,6 +71,13 @@ public class EPSGBoundsCalc {
             MathTransform mathTransform = CRS.findMathTransform(wgs84LongFirst, crs, true);
 
             Envelope wgs84Envelope = new Envelope(minx, maxx, miny, maxy);
+
+
+            CoordinateOperationFactory coordOpFactory = CRS.getCoordinateOperationFactory(true);
+            CoordinateOperation op = coordOpFactory.createOperation(wgs84LongFirst,crs);
+
+            ReferencedEnvelope envelope = new ReferencedEnvelope(minx, maxx, miny, maxy, wgs84LongFirst);
+            GeneralEnvelope g = CRS.transform(op, envelope);
 
             Envelope crsBounds = JTS.transform(wgs84Envelope, mathTransform);
 
