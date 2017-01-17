@@ -1,9 +1,7 @@
 package org.locationtech.geogig.data;
 
-/**
- * Created by mthompson on 2017-01-11.
- */
-
+import com.vividsolutions.jts.geom.Envelope;
+import org.opengis.referencing.crs.CoordinateReferenceSystem;
 import java.util.Collection;
 import java.util.Set;
 
@@ -14,38 +12,42 @@ import org.opengis.metadata.extent.Extent;
 import org.opengis.metadata.extent.GeographicBoundingBox;
 import org.opengis.metadata.extent.GeographicExtent;
 import org.opengis.referencing.crs.CRSAuthorityFactory;
-import org.opengis.referencing.crs.CoordinateReferenceSystem;
 import org.opengis.referencing.operation.CoordinateOperation;
 import org.opengis.referencing.operation.CoordinateOperationFactory;
 
+/**
+ * Given a EPSG code, find the CRS bounds and return as an Envelope
+ */
 public class EPSGBoundsCalc {
 
-    public GeneralEnvelope getExtents(CoordinateReferenceSystem crs,
-        StringBuilder outErr) {
+    /**
+     * Get the bounds of the desired CRS, uses JTS ReferencedEnvelope transform to properly
+     * handle polar projections
+     * @param crs the target CoordinateReferenceSystem
+     * @return bounds an Envelope containing the CRS bounds
+     */
+    public Envelope getExtents(CoordinateReferenceSystem crs) throws Exception {
+
         final Extent domainOfValidity = crs.getDomainOfValidity();
 
         if (null == domainOfValidity) {
-            outErr.append("No domain of validity provided by CRS definition");
-            return null;
+            throw new Exception("No domain of validity provided by CRS definition");
         }
 
         Collection<? extends GeographicExtent> geographicElements;
         geographicElements = domainOfValidity.getGeographicElements();
 
         if (null == geographicElements || geographicElements.size() != 1) {
-            outErr.append("Number of geographic elements != 1");
-            return null;
+            throw new Exception("Number of geographic elements != 1");
         }
 
         GeographicExtent geographicExtent = geographicElements.iterator().next();
         if (!(geographicExtent instanceof GeographicBoundingBox)) {
-            outErr.append("geographic extent is not a geographic bounding box");
-            return null;
+            throw new Exception("geographic extent is not a geographic bounding box");
         }
 
         if (!geographicExtent.getInclusion()) {
-            outErr.append("geographic extent is exclusive, can only deal with inclusive ones");
-            return null;
+            throw new Exception("geographic extent is exclusive, can only deal with inclusive ones");
         }
 
         GeographicBoundingBox geographicBoundingBox = (GeographicBoundingBox) geographicExtent;
@@ -60,42 +62,51 @@ public class EPSGBoundsCalc {
         try {
 
             wgs84LongFirst = CRS.decode("EPSG:4326", true);
-
             CoordinateOperationFactory coordOpFactory = CRS.getCoordinateOperationFactory(true);
             CoordinateOperation op = coordOpFactory.createOperation(wgs84LongFirst,crs);
 
-            ReferencedEnvelope envelope = new ReferencedEnvelope(minx, maxx, miny, maxy, wgs84LongFirst);
-            GeneralEnvelope g = CRS.transform(op, envelope);
+            ReferencedEnvelope refEnvelope = new ReferencedEnvelope(minx, maxx, miny, maxy, wgs84LongFirst);
+            GeneralEnvelope genEnvelope = CRS.transform(op, refEnvelope);
 
-            return g;
+            double xmax = genEnvelope.getMaximum(0);
+            double ymax = genEnvelope.getMaximum(1);
+            double xmin = genEnvelope.getMinimum(0);
+            double ymin = genEnvelope.getMinimum(1);
+
+            Envelope envelope = new Envelope(xmin, xmax, ymin, ymax);
+            return envelope;
         } catch (Exception e) {
-            outErr.append("ERROR: " + e.getMessage());
-            return null;
+            throw new Exception("ERROR: " + e.getMessage());
         }
     }
 
-    //change so we can lookup a particular CRS, currently iterates through all`
-    public GeneralEnvelope findCode(String target) throws Exception {
-        GeneralEnvelope projectionBounds = null;
+    /**
+     * Search for the given CRS (EPSG code), return the bounds (domain of validity)
+     * @param refId the input CRS
+     * @return projectionBounds an Envelope describing the CRS bounds
+     */
+    public Envelope findCode(String refId) throws Exception {
+        Envelope projectionBounds = null;
         CoordinateReferenceSystem crs;
 
         CRSAuthorityFactory authorityFactory = CRS.getAuthorityFactory(true);
-        Set<String> authorityCodes = authorityFactory
-            .getAuthorityCodes(CoordinateReferenceSystem.class);
+        Set<String> authorityCodes = authorityFactory.getAuthorityCodes(CoordinateReferenceSystem.class);
 
-        for (String code : authorityCodes) {
-            //only checks the EPSG codes
-            if (code.startsWith("EPSG:") && code.contains(target)) {
-                try {
-                    crs = authorityFactory.createCoordinateReferenceSystem(code);
-                } catch (Exception e) {
-                    System.err.printf("%s: Unable to create CRS: %s\n", code, e.getMessage());
-                    continue;
+        if (refId.contains("WGS 84")) {
+            crs = authorityFactory.createCoordinateReferenceSystem("EPSG:4326");
+            projectionBounds = getExtents(crs);
+        } else {
+            for (String code : authorityCodes) {
+                if (code.startsWith("EPSG:") && code.contains(refId)) {
+                    try {
+                        crs = authorityFactory.createCoordinateReferenceSystem(code);
+                    } catch (Exception e) {
+                        System.err.printf("%s: Unable to create CRS: %s\n", code, e.getMessage());
+                        continue;
+                    }
+                    projectionBounds = getExtents(crs);
+                    System.err.printf("%s: , %s \n", code, projectionBounds);
                 }
-                StringBuilder err = new StringBuilder();
-                projectionBounds = getExtents(crs, err);
-
-                System.err.printf("%s: %s %s\n", code, projectionBounds, err);
             }
         }
         return projectionBounds;
