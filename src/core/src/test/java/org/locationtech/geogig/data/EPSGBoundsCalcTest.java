@@ -5,6 +5,9 @@
  *  which accompanies this distribution, and is available at
  *  https://www.eclipse.org/org/documents/edl-v10.html
  *
+ *  Contributors:
+ *  Morgan Thompson (Boundless) - initial implementation
+ *  Alex Goudine (Boundless)
  */
 
 package org.locationtech.geogig.data;
