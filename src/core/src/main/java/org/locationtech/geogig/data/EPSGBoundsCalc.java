@@ -20,6 +20,7 @@ import org.geotools.referencing.CRS;
 import org.geotools.referencing.crs.DefaultGeographicCRS;
 import org.locationtech.geogig.model.RevFeatureType;
 import org.locationtech.geogig.porcelain.CRSException;
+import org.opengis.feature.type.GeometryDescriptor;
 import org.opengis.metadata.extent.Extent;
 import org.opengis.metadata.extent.GeographicBoundingBox;
 import org.opengis.metadata.extent.GeographicExtent;
@@ -32,7 +33,6 @@ import org.opengis.referencing.operation.TransformException;
 
 import com.vividsolutions.jts.geom.Envelope;
 
-
 /**
  * Given a code string (EPSG:####) or {@link RevFeatureType} , find the CRS bounds and return as an
  * Envelope
@@ -43,19 +43,22 @@ public class EPSGBoundsCalc {
 
     /**
      * Get the bounds of the desired CRS
+     *
      * @param crs the target CoordinateReferenceSystem
      * @return bounds an Envelope containing the CRS bounds, throws a NoSuchAuthorityCodeException,
      * a CRSException, or a TransformException if the CRS cannot be found
      */
     private Envelope getExtents(CoordinateReferenceSystem crs)
-            throws CRSException, TransformException, FactoryException {
+        throws CRSException, TransformException, FactoryException {
 
         final Extent domainOfValidity = crs.getDomainOfValidity();
 
         if (null == domainOfValidity)
-            throw new CRSException("No domain of validity provided by CRS definition");
+            throw new CRSException(
+                "No domain of validity provided by CRS definition. CRS may be invalid. \n" + crs);
 
-        Collection<? extends GeographicExtent> geographicElements = domainOfValidity.getGeographicElements();
+        Collection<? extends GeographicExtent> geographicElements = domainOfValidity
+            .getGeographicElements();
 
         GeographicExtent geographicExtent = geographicElements.iterator().next();
         GeographicBoundingBox geographicBoundingBox = (GeographicBoundingBox) geographicExtent;
@@ -81,12 +84,13 @@ public class EPSGBoundsCalc {
 
     /**
      * Search for the given CRS (EPSG code), return the bounds (domain of validity)
+     *
      * @param refId the input CRS
      * @return projectionBounds an Envelope describing the CRS bounds, throws
      * a NoSuchAuthorityException, a CRSException, or a TransformException if the CRS cannot be found
      */
     public Envelope getCRSBounds(String refId)
-            throws FactoryException, CRSException, TransformException {
+        throws FactoryException, CRSException, TransformException {
 
         CRSAuthorityFactory authorityFactory = CRS.getAuthorityFactory(true);
         CoordinateReferenceSystem crs = authorityFactory.createCoordinateReferenceSystem(refId);
@@ -96,14 +100,33 @@ public class EPSGBoundsCalc {
 
     /**
      * Search for the given CRS (EPSG code), return the bounds (domain of validity)
-     * @param featureType the RevFeatureType of the CRS to find the bounds for
+     *
+     * @param ft the RevFeatureType of the CRS to find the bounds for
      * @return Envelope describing the CRS bounds, throws NoSuchAuthorityException, a CRSException,
      * or a TransformException if the CRS cannot be found
      */
-    public Envelope getCRSBounds(RevFeatureType featureType)
-            throws CRSException, TransformException, FactoryException {
+    public Envelope getCRSBounds(RevFeatureType ft)
+        throws CRSException, TransformException, FactoryException {
 
-        CoordinateReferenceSystem crs = featureType.type().getGeometryDescriptor().getCoordinateReferenceSystem();
+        CoordinateReferenceSystem crs = null;
+
+        GeometryDescriptor geometryDescriptor = ft.type().getGeometryDescriptor();
+        if (geometryDescriptor != null) {
+            crs = geometryDescriptor.getCoordinateReferenceSystem();
+            String srs = CRS.toSRS(crs);
+            if (srs != null && !srs.startsWith("EPSG:")) {
+                boolean fullScan = true;
+                String knownIdentifier;
+                knownIdentifier = CRS.lookupIdentifier(crs, fullScan);
+                if (knownIdentifier != null) {
+                    boolean longitudeFirst = CRS.getAxisOrder(crs).equals(CRS.AxisOrder.EAST_NORTH);
+                    crs = CRS.decode(knownIdentifier, longitudeFirst);
+                } else {
+                    throw new CRSException(
+                        "Could not find identifier associated with the defined CRS: \n" + crs);
+                }
+            }
+        }
         return getExtents(crs);
     }
 }
