@@ -48,8 +48,8 @@ public class EPSGBoundsCalc {
      * @return bounds an Envelope containing the CRS bounds, throws a NoSuchAuthorityCodeException,
      * a CRSException, or a TransformException if the CRS cannot be found
      */
-    private Envelope getExtents(CoordinateReferenceSystem crs)
-        throws CRSException, TransformException, FactoryException {
+    public static Envelope getExtents(CoordinateReferenceSystem crs)
+        throws CRSException, FactoryException, TransformException {
 
         final Extent domainOfValidity = crs.getDomainOfValidity();
 
@@ -90,7 +90,7 @@ public class EPSGBoundsCalc {
      * a NoSuchAuthorityException, a CRSException, or a TransformException if the CRS cannot be found
      */
     public Envelope getCRSBounds(String refId)
-        throws FactoryException, CRSException, TransformException {
+        throws CRSException, FactoryException, TransformException {
 
         CRSAuthorityFactory authorityFactory = CRS.getAuthorityFactory(true);
         CoordinateReferenceSystem crs = authorityFactory.createCoordinateReferenceSystem(refId);
@@ -106,7 +106,7 @@ public class EPSGBoundsCalc {
      * or a TransformException if the CRS cannot be found
      */
     public Envelope getCRSBounds(RevFeatureType ft)
-        throws CRSException, TransformException, FactoryException {
+        throws CRSException, FactoryException, TransformException {
 
         CoordinateReferenceSystem crs = null;
 
