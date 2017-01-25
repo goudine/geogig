@@ -20,6 +20,7 @@ import org.geotools.referencing.CRS;
 import org.geotools.referencing.crs.DefaultGeographicCRS;
 import org.locationtech.geogig.model.RevFeatureType;
 import org.locationtech.geogig.porcelain.CRSException;
+import org.locationtech.geogig.repository.impl.SpatialOps;
 import org.opengis.feature.type.GeometryDescriptor;
 import org.opengis.metadata.extent.Extent;
 import org.opengis.metadata.extent.GeographicBoundingBox;
@@ -108,25 +109,9 @@ public class EPSGBoundsCalc {
     public Envelope getCRSBounds(RevFeatureType ft)
         throws CRSException, FactoryException, TransformException {
 
-        CoordinateReferenceSystem crs = null;
-
         GeometryDescriptor geometryDescriptor = ft.type().getGeometryDescriptor();
-        if (geometryDescriptor != null) {
-            crs = geometryDescriptor.getCoordinateReferenceSystem();
-            String srs = CRS.toSRS(crs);
-            if (srs != null && !srs.startsWith("EPSG:")) {
-                boolean fullScan = true;
-                String knownIdentifier;
-                knownIdentifier = CRS.lookupIdentifier(crs, fullScan);
-                if (knownIdentifier != null) {
-                    boolean longitudeFirst = CRS.getAxisOrder(crs).equals(CRS.AxisOrder.EAST_NORTH);
-                    crs = CRS.decode(knownIdentifier, longitudeFirst);
-                } else {
-                    throw new CRSException(
-                        "Could not find identifier associated with the defined CRS: \n" + crs);
-                }
-            }
-        }
+        CoordinateReferenceSystem crs = SpatialOps.findIdentifier(geometryDescriptor);
         return getExtents(crs);
     }
+
 }
