@@ -114,4 +114,13 @@ public class EPSGBoundsCalc {
         return getExtents(crs);
     }
 
+
+    // Testing to get bounds from URN code
+    public Envelope getCRSBoundsFromURN(String URNcode)
+        throws FactoryException, CRSException, TransformException {
+
+        CoordinateReferenceSystem crs = CRS.decode(URNcode);
+        return getExtents(crs);
+    }
+
 }

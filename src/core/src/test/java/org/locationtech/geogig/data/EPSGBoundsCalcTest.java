@@ -131,4 +131,41 @@ public class EPSGBoundsCalcTest extends RepositoryTestCase {
         Envelope actual = new Envelope(205723.76927073707, 794276.2307292629, 3128220.0383561817, 9329005.182379141);
         assertEquals(actual,bounds);
     }
+
+    @Test
+    public void URNMatch() throws Exception {
+
+        String URNcode26713 = "urn:x-ogc:def:crs:EPSG:6.11.2:26713";
+        String URNcode4326 = "urn:ogc:def:crs:OGC:1.3:CRS84";
+        String CRS84 = "urn:ogc:def:crs:EPSG:CRS84";
+        String URNcode26986 = "urn:ogc:def:crs:EPSG::26986";
+        String URNcode7001 = "urn:ogc:def:ellipsoid:EPSG:6.0:7001";
+
+        Envelope bounds = new EPSGBoundsCalc().getCRSBoundsFromURN(URNcode26713);
+        //Envelope expected = new Envelope( 181985.7630, 1973809.4640, 818014.2370, 8894102.4298);
+        System.out.print(bounds);
+        System.out.println(" -> bounds for EPSG:26713");
+
+        /*bounds = new EPSGBoundsCalc().getCRSBoundsFromURN(URNcode4326);
+        System.out.print(bounds);
+        System.out.println(" -> bounds for EPSG:4326");
+        //org.opengis.referencing.NoSuchAuthorityCodeException: Authority "OGC" is unknown or doesn't match the supplied hints. Maybe it is defined in an unreachable JAR file?
+        */
+
+        /*Envelope bounds2 = new EPSGBoundsCalc().getCRSBoundsFromURN(CRS84);
+        System.out.print(bounds2);
+        System.out.println(" -> bounds for CRS:84");
+        //org.opengis.referencing.NoSuchAuthorityCodeException: No code "EPSG:CRS84" from authority "European Petroleum Survey Group" found for object of type "CoordinateReferenceSystem".
+        */
+
+        bounds = new EPSGBoundsCalc().getCRSBoundsFromURN(URNcode26986);
+        System.out.print(bounds);
+        System.out.println(" -> bounds for EPSG:26986");
+
+        bounds = new EPSGBoundsCalc().getCRSBoundsFromURN(URNcode7001);
+        System.out.print(bounds);
+        System.out.println(" -> bounds for EPSG:7001");
+
+        //assertEquals(expected, bounds);
+    }
 }
