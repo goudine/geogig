@@ -28,7 +28,7 @@ import org.locationtech.geogig.rocksdb.DBHandle.RocksDBReference;
 import org.locationtech.geogig.storage.ConfigDatabase;
 import org.locationtech.geogig.storage.IndexDatabase;
 import org.locationtech.geogig.storage.StorageType;
-import org.locationtech.geogig.storage.impl.IndexSerializer;
+import org.locationtech.geogig.storage.impl.IndexInfoSerializer;
 import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.RocksDBException;
 import org.rocksdb.RocksIterator;
@@ -67,8 +67,8 @@ public class RocksdbIndexDatabase extends RocksdbObjectStore implements IndexDat
     }
 
     @Override
-    public void checkConfig() throws RepositoryConnectionException {
-        StorageType.INDEX.verify(configdb, FORMAT_NAME, VERSION);
+    public boolean checkConfig() throws RepositoryConnectionException {
+        return StorageType.INDEX.verify(configdb, FORMAT_NAME, VERSION);
     }
 
     @Override
@@ -102,7 +102,7 @@ public class RocksdbIndexDatabase extends RocksdbObjectStore implements IndexDat
         checkWritable();
         IndexInfo index = new IndexInfo(treeName, attributeName, strategy, metadata);
         ByteArrayDataOutput out = ByteStreams.newDataOutput();
-        IndexSerializer.serialize(index, out);
+        IndexInfoSerializer.serialize(index, out);
         byte[] key = indexKey(treeName, attributeName);
         byte[] value = out.toByteArray();
         try (RocksDBReference dbRef = dbhandle.getReference()) {
@@ -114,7 +114,7 @@ public class RocksdbIndexDatabase extends RocksdbObjectStore implements IndexDat
     }
 
     private IndexInfo readIndex(byte[] indexBytes) {
-        IndexInfo index = IndexSerializer.deserialize(ByteStreams.newDataInput(indexBytes));
+        IndexInfo index = IndexInfoSerializer.deserialize(ByteStreams.newDataInput(indexBytes));
         return index;
     }
 
