@@ -22,6 +22,8 @@ import java.util.function.Function;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import javax.swing.text.html.Option;
+
 import org.locationtech.geogig.repository.Repository;
 import org.locationtech.geogig.repository.impl.RepositoryBusyException;
 import org.locationtech.geogig.rest.RestletException;
@@ -54,9 +56,9 @@ import com.google.common.base.Preconditions;
  */
 public class CommandResource extends Resource {
 
-    private Form options;
+    protected Form options;
 
-    private WebAPICommand command;
+    protected WebAPICommand command;
 
     protected WebAPICommand buildCommand(String commandName, ParameterSet params) {
         return CommandBuilder.build(commandName, params);
@@ -76,6 +78,10 @@ public class CommandResource extends Resource {
         ParameterSet params = buildParameterSet(options);
         command = buildCommand(commandName, params);
         assert command != null;
+    }
+
+    protected Form getOptions() {
+        return options;
     }
 
     protected String getCommandName() {
@@ -265,7 +271,7 @@ public class CommandResource extends Resource {
         return retval;
     }
 
-    static class RestletContext implements CommandContext {
+    public static class RestletContext implements CommandContext {
 
         CommandResponse responseContent = null;
 
@@ -277,7 +283,7 @@ public class CommandResource extends Resource {
 
         private Function<MediaType, Representation> representation;
 
-        RestletContext(Repository geogig, Request request) {
+        public RestletContext(Repository geogig, Request request) {
             this.geogig = geogig;
             this.request = request;
         }
