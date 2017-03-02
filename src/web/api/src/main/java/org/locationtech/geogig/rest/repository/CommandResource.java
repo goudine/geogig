@@ -9,11 +9,7 @@
  */
 package org.locationtech.geogig.rest.repository;
 
-import static org.locationtech.geogig.rest.Variants.CSV;
-import static org.locationtech.geogig.rest.Variants.CSV_MEDIA_TYPE;
-import static org.locationtech.geogig.rest.Variants.JSON;
-import static org.locationtech.geogig.rest.Variants.XML;
-import static org.locationtech.geogig.rest.Variants.getVariantByExtension;
+import static org.locationtech.geogig.rest.Variants.*;
 import static org.locationtech.geogig.web.api.RESTUtils.getGeogig;
 
 import java.util.List;
@@ -22,28 +18,12 @@ import java.util.function.Function;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import javax.swing.text.html.Option;
-
 import org.locationtech.geogig.repository.Repository;
 import org.locationtech.geogig.repository.impl.RepositoryBusyException;
 import org.locationtech.geogig.rest.RestletException;
-import org.locationtech.geogig.web.api.CommandBuilder;
-import org.locationtech.geogig.web.api.CommandContext;
-import org.locationtech.geogig.web.api.CommandResponse;
-import org.locationtech.geogig.web.api.CommandResponseStreamingWriterRepresentation;
-import org.locationtech.geogig.web.api.CommandSpecException;
-import org.locationtech.geogig.web.api.ParameterSet;
-import org.locationtech.geogig.web.api.RESTUtils;
-import org.locationtech.geogig.web.api.StreamResponse;
-import org.locationtech.geogig.web.api.StreamWriterRepresentation;
-import org.locationtech.geogig.web.api.WebAPICommand;
+import org.locationtech.geogig.web.api.*;
 import org.restlet.Context;
-import org.restlet.data.Form;
-import org.restlet.data.MediaType;
-import org.restlet.data.Method;
-import org.restlet.data.Request;
-import org.restlet.data.Response;
-import org.restlet.data.Status;
+import org.restlet.data.*;
 import org.restlet.resource.Representation;
 import org.restlet.resource.Resource;
 import org.restlet.resource.Variant;
