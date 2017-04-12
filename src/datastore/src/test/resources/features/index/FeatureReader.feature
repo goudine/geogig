@@ -104,3 +104,12 @@ Feature: GeoGig DataStore Feature read/write validation
       And I make an edit to "dataStore1"
       And I make the same edit to "dataStore2"
       Then datastore "dataStore1" and datastore "dataStore2" both have the same features
+
+   @newTest
+   Scenario: Ensure concurent edits function as expected
+      # set up the layer, datastore, and then call the hook you just made
+      Given I am working with the "point" layer
+      And I have a datastore named "dataStore1" backed by a GeoGig repo
+      Then we insert features into datastore "dataStore1" with 200 features per thread using 4 threads concurrently
+#      Then concurrent edits are made to the "dataStore1" datastore with 200 features per thread using 4 threads concurrently "inserts"
+      Then datastore "dataStore1" has the edited feature
