@@ -105,20 +105,25 @@ public class FunctionalStepDefinitions {
     private HashMap<String, GeoGigDataStore> datastoreMap;
 
     // Executor services
-    private ExecutorService writeService, readService;
+    private ExecutorService writeService, readService, editService;
 
     // Write counts
     // These should be set by methods that take them as arguments
-    private int writesPerThread, writeThreads;
+    public int writesPerThread, writeThreads;
 
-    private SimpleFeature postEditedFeature;
-    private SimpleFeature preEditedFeature;
+    protected SimpleFeature postEditedFeature;
+    public SimpleFeature preEditedFeature;
 
     // commit count
     private HashMap<String, Integer> initialCommitCountMap;
 
     // working layer
     private SimpleFeatureType currentLayer;
+
+    // List to keep track of edits
+    List<SimpleFeature> editedFeatures = Lists.newArrayList();
+    List<Future<List<SimpleFeature>>> editedFeatures2 = Lists.newArrayList();
+    List<Future<List<SimpleFeature>>> insertedFeatures = Lists.newArrayList();
 
     @Before
     public void before() throws Exception {
@@ -132,6 +137,9 @@ public class FunctionalStepDefinitions {
 
         readService = Executors.newFixedThreadPool(READ_POOL_THREAD_COUNT,
                 new ThreadFactoryBuilder().setNameFormat("read-thread-%d").build());
+
+        editService = Executors.newFixedThreadPool(WRITE_POOL_THREAD_COUNT,
+                new ThreadFactoryBuilder().setNameFormat("edit-thread-%d").build());
 
         initialCommitCountMap = new HashMap<>(2);
         repoMap = new HashMap<>(2);
@@ -199,6 +207,25 @@ public class FunctionalStepDefinitions {
             assertEquals(numPointsPerWriteThread, featureList.size());
         }
     }
+
+    @Given("^datastore \"([^\"]*)\" has (\\d+) features per thread inserted using (\\d+) threads concurrently$")
+    public void datastore_has_features_inserted_conc(String storeName, int numPointsPerWriteThread,
+        int writeThreadCount) throws Throwable {
+
+        // set the counts for later verification
+        writesPerThread = numPointsPerWriteThread;
+        writeThreads = writeThreadCount;
+
+        insertedFeatures = runInserts(writeThreadCount,
+            numPointsPerWriteThread, datastoreMap.get(storeName));
+        assertEquals(String.format("Expected exactly %s Insert task(s)", writeThreadCount),
+            writeThreadCount, insertedFeatures.size());
+        for (Future<List<SimpleFeature>> future : insertedFeatures) {
+            List<SimpleFeature> featureList = future.get();
+            assertEquals(numPointsPerWriteThread, featureList.size());
+        }
+    }
+
 
     @Then("^I should be able to retrieve data from \"([^\"]*)\"" +
             " using (\\d+) threads and (\\d+) reads per thread$")
@@ -357,6 +384,126 @@ public class FunctionalStepDefinitions {
                 storeName, editedAttributeValue));
     }
 
+    @Then("^I make a feature edit to \"([^\"]*)\" using (\\d+) threads$")
+    public void edit_feature_using_threads(String storeName, int numThreads) throws Throwable {
+
+        //SimpleFeatureStore featureStore = getFeatureStore(storeName);
+
+        // don't think this for loop is required....
+        //for (int i=1; i<=numThreads; i++) {
+
+            // CALL --> runEdits()
+            // editedFeatures = runEdits( numThreads, datastoreMap.get(storeName), featuresToEdit);
+            int featuresToEdit = 1;
+            editedFeatures2 = runEdits( numThreads, storeName, featuresToEdit);
+
+            // editedFeatures = editService.submit(new EditTask(storeName, 1, currentLayer));
+/*
+            // decides which feature to edit
+            int featureIndex = RANDOM.nextInt(writesPerThread * writeThreads);
+            int count = 0;
+
+            Transaction tx = new DefaultTransaction();
+            featureStore.setTransaction(tx);
+
+            try (SimpleFeatureIterator featureIterator = getIterator(featureStore)) {
+                while (featureIterator.hasNext() && count++ < featureIndex) {
+                    // advance the iterator to the randomly selected feature
+                    featureIterator.next();
+                }
+
+                // get the next feature
+                preEditedFeature = featureIterator.next();
+                postEditedFeature = (SimpleFeature) DataUtilities.duplicate(preEditedFeature);
+
+                // edit the feature
+                Object attribute = postEditedFeature.getAttribute("sp");
+                assertNotNull(attribute);
+                String newVal = attribute.toString() + "_edited";
+                postEditedFeature.setAttribute("sp", newVal);
+                featureStore.addFeatures(DataUtilities.collection(postEditedFeature));
+                editedFeatures.add(postEditedFeature);
+                tx.commit();
+
+            } finally {
+                tx.close();
+            }
+            // make sure the stored editedFeature is a GeogigSimpleFeature, not a SimpleFeatureImpl
+            tx = new DefaultTransaction();
+            featureStore.setTransaction(tx);
+            try (SimpleFeatureIterator featureIterator = getIterator(featureStore)) {
+                while (featureIterator.hasNext()) {
+                    SimpleFeature feature = featureIterator.next();
+                    if (feature.getIdentifier().equals(preEditedFeature.getIdentifier())) {
+                        postEditedFeature = feature;
+                        break;
+                    }
+                }
+            } finally {
+                tx.close();
+            }*/
+        //}
+    }
+
+    @Then("^the datastore \"([^\"]*)\" has the (\\d+) edited features$")
+    public void datastore_has_the_edited_feature(String storeName, int featuresEdited) throws Throwable {
+
+        // get the features from the store
+        List<Future<List<SimpleFeature>>> reads = runReads(featuresEdited, 1, datastoreMap.get(storeName));
+        assertEquals(featuresEdited, reads.size());
+        Future<List<SimpleFeature>> future = reads.get(0);
+        List<SimpleFeature> featureList = future.get();
+
+        // ensure the list contains the edited feature
+        final Object editedAttributeValue = postEditedFeature.getAttribute("sp");
+        for (SimpleFeature feature : featureList) {
+            if (postEditedFeature.getIdentifier().equals(feature.getIdentifier())) {
+                // found the FID
+                final Object featureAttributeValue = feature.getAttribute("sp");
+                assertEquals(
+                    String.format(
+                        "DataStore %s does not contain edited feature with \"sp\" attribute: %s",
+                        storeName, editedAttributeValue),
+                    editedAttributeValue, featureAttributeValue);
+                assertEquals(postEditedFeature, feature);
+                return;
+            }
+        }
+        fail(String.format("DataStore %s does not contain edited feature with \"sp\" attribute: %s",
+            storeName, editedAttributeValue));
+    }
+
+    @Then("^the datastore \"([^\"]*)\" has the (\\d+) edited features please$")
+    public void contains_the_edited_feature(String storeName, int featuresEdited) throws Throwable {
+
+        int totalFeatureInserted = writesPerThread * writeThreads;
+        // get the features from the store
+        List<Future<List<SimpleFeature>>> reads = runReads(totalFeatureInserted, 1, datastoreMap.get(storeName));
+        assertEquals(totalFeatureInserted, reads.size());
+
+        Future<List<SimpleFeature>> future = reads.get(0);
+        List<SimpleFeature> featureList = future.get();
+
+        // ensure the list contains the edited feature
+        //final Object editedAttributeValue = postEditedFeature.getAttribute("sp");
+        final Object editedAttributeValue = editedFeatures2.get(0);
+        for (SimpleFeature feature : featureList) {
+            if (postEditedFeature.getIdentifier().equals(feature.getIdentifier())) {
+                // found the FID
+                final Object featureAttributeValue = feature.getAttribute("sp");
+                assertEquals(
+                    String.format(
+                        "DataStore '%s' does not contain edited feature with \"sp\" attribute: %s",
+                        storeName, editedAttributeValue),
+                    editedAttributeValue, featureAttributeValue);
+                assertEquals(postEditedFeature, feature);
+                return;
+            }
+        }
+        fail(String.format("DataStore %s does not contain edited feature with \"sp\" attribute: %s",
+            storeName, editedAttributeValue));
+    }
+
     private SimpleFeatureStore getFeatureStore(String storeName)
             throws IOException {
         GeoGigDataStore store = datastoreMap.get(storeName);
@@ -388,8 +535,7 @@ public class FunctionalStepDefinitions {
         return geogig.getRepository();
     }
 
-    private List<Future<List<SimpleFeature>>> runInserts(final int writeThreadCount,
-            final int insertsPerTask, GeoGigDataStore store) {
+    private List<Future<List<SimpleFeature>>> runInserts(final int writeThreadCount, final int insertsPerTask, GeoGigDataStore store) {
         List<Future<List<SimpleFeature>>> insertResults = Lists.newArrayList();
         for (int i = 0; i < writeThreadCount; i++) {
             insertResults.add(writeService.submit(new InsertTask(store, insertsPerTask,
@@ -405,6 +551,15 @@ public class FunctionalStepDefinitions {
             readResults.add(readService.submit(new ReadTask(store, readsPerTask, currentLayer)));
         }
         return readResults;
+    }
+
+    private List<Future<List<SimpleFeature>>> runEdits ( int numThreads, String dataStoreName, int numEdits) {
+
+        List<Future<List<SimpleFeature>>> edits = Lists.newArrayList();
+        for (int i=0; i<numThreads; i++) {
+            edits.add(editService.submit(new EditTask( dataStoreName, numEdits, currentLayer)));
+        }
+        return edits;
     }
 
     private static final GeometryFactory GF = new GeometryFactory();
@@ -552,4 +707,80 @@ public class FunctionalStepDefinitions {
             return featureList;
         }
     }
+
+    public class EditTask implements Callable<List<SimpleFeature>> {
+
+        private final GeoGigDataStore dataStore;
+
+        private final SimpleFeatureBuilder builder;
+
+        private final int numEdits;
+
+        private final SimpleFeatureType type;
+
+        private final String dataStoreName;
+
+        public EditTask(String dataStoreName, int numEdits, final SimpleFeatureType type) {
+            this.dataStore = datastoreMap.get(dataStoreName);
+            this.numEdits = numEdits;
+            this.type = type;
+            this.builder = new SimpleFeatureBuilder(type);
+            this.dataStoreName = dataStoreName;
+        }
+
+        @Override
+        public List<SimpleFeature> call() throws IOException {
+
+            // this next line was in 'edit_feature_using_threads'
+            SimpleFeatureStore featureStore = getFeatureStore(dataStoreName);
+
+            // decides which feature to edit
+            int featureIndex = RANDOM.nextInt(writesPerThread * writeThreads);
+            int count = 0;
+
+            Transaction tx = new DefaultTransaction();
+            featureStore.setTransaction(tx);
+
+            try (SimpleFeatureIterator featureIterator = getIterator(featureStore)) {
+                while (featureIterator.hasNext() && count++ < featureIndex) {
+                    // advance the iterator to the randomly selected feature
+                    featureIterator.next();
+                }
+
+                // get the next feature
+                preEditedFeature = featureIterator.next();
+                postEditedFeature = (SimpleFeature) DataUtilities.duplicate(preEditedFeature);
+
+                // edit the feature
+                Object attribute = postEditedFeature.getAttribute("sp");
+                assertNotNull(attribute);
+                String newVal = attribute.toString() + "_edited";
+                postEditedFeature.setAttribute("sp", newVal);
+                featureStore.addFeatures(DataUtilities.collection(postEditedFeature));
+                editedFeatures2.add((Future<List<SimpleFeature>>) postEditedFeature);
+                tx.commit();
+
+            } finally {
+                tx.close();
+            }
+            // make sure the stored editedFeature is a GeogigSimpleFeature, not a SimpleFeatureImpl
+            tx = new DefaultTransaction();
+            featureStore.setTransaction(tx);
+            try (SimpleFeatureIterator featureIterator = getIterator(featureStore)) {
+                while (featureIterator.hasNext()) {
+                    SimpleFeature feature = featureIterator.next();
+                    if (feature.getIdentifier().equals(preEditedFeature.getIdentifier())) {
+                        postEditedFeature = feature;
+                        break;
+                    }
+                }
+            } finally {
+                tx.close();
+            }
+
+            return editedFeatures;
+        }
+    }
+
+
 }
